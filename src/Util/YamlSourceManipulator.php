@@ -709,7 +709,11 @@ class YamlSourceManipulator
             ? intdiv($this->indentationForDepths[$this->depth], $this->depth)
             : 4;
 
-        $newDataString = Yaml::dump($data, 4, $indent);
+        // DUMP_COMPACT_NESTED_MAPPING keeps sequences of mappings in the compact
+        // "- key: value" style on every supported symfony/yaml version: it was
+        // the default for a while (symfony/symfony#62967) before being reverted
+        // (symfony/symfony#65365), and the fixtures rely on it
+        $newDataString = Yaml::dump($data, 4, $indent, Yaml::DUMP_COMPACT_NESTED_MAPPING);
         // new line is appended: remove it
         $newDataString = rtrim($newDataString, "\n");
 
@@ -1000,7 +1004,7 @@ class YamlSourceManipulator
     {
         while (true) {
             if ($this->isEOF()) {
-                throw new \LogicException('Could not determine array type');
+                throw new \LogicException('Could not determine array type.');
             }
 
             // get the next char & advance immediately
@@ -1029,7 +1033,7 @@ class YamlSourceManipulator
         $currentPosition = $this->currentPosition;
         while (true) {
             if ($this->isEOF($currentPosition)) {
-                throw new \LogicException(\sprintf('Could not find any characters: %s', implode(', ', $chars)));
+                throw new \LogicException(\sprintf('Could not find any characters: "%s"', implode('", "', $chars)));
             }
 
             // get the next char & advance immediately
@@ -1093,7 +1097,7 @@ class YamlSourceManipulator
     private function normalizeSequences(array $data): array
     {
         // https://stackoverflow.com/questions/173400/how-to-check-if-php-array-is-associative-or-sequential/4254008#4254008
-        $hasStringKeys = fn (array $array): bool => \count(array_filter(array_keys($array), 'is_string')) > 0;
+        $hasStringKeys = static fn (array $array): bool => \count(array_filter(array_keys($array), 'is_string')) > 0;
 
         foreach ($data as $key => $val) {
             if (!\is_array($val)) {

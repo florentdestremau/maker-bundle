@@ -139,6 +139,7 @@ class MakeResetPassword extends AbstractMaker
 
         // reset-password-bundle 1.6 includes the ability to generate a fake token.
         // we need to check that version 1.6 is installed
+        // @phpstan-ignore function.alreadyNarrowedType
         if (class_exists(ResetPasswordHelper::class) && !method_exists(ResetPasswordHelper::class, 'generateFakeResetToken')) {
             throw new RuntimeCommandException('Please run "composer upgrade symfonycasts/reset-password-bundle". Version 1.6 or greater of this bundle is required.');
         }
@@ -350,7 +351,7 @@ class MakeResetPassword extends AbstractMaker
         );
 
         // Generate PHPUnit tests
-        if ($this->shouldGenerateTests()) {
+        if ($this->shouldGenerateTests($input)) {
             $testClassDetails = $generator->createClassNameDetails(
                 'ResetPasswordControllerTest',
                 'Test\\',
@@ -366,6 +367,7 @@ class MakeResetPassword extends AbstractMaker
                 $userRepositoryDetails->getFullName(),
                 EntityManagerInterface::class,
                 KernelBrowser::class,
+                TemplatedEmail::class,
                 WebTestCase::class,
                 UserPasswordHasherInterface::class,
             ]);

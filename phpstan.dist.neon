@@ -18,9 +18,10 @@ parameters:
         - tests/Util/yaml_fixtures
     ignoreErrors:
         -
-            message: '#Property .+phpCompatUtil is never read, only written\.#'
+            message: '#Class Symfony\\Bundle\\MakerBundle\\Maker\\LegacyApiTestCase not found#'
             path: src/Maker/*
 
         -
-            message: '#Class Symfony\\Bundle\\MakerBundle\\Maker\\LegacyApiTestCase not found#'
-            path: src/Maker/*
+            message: '#^Method .*Test\:\:test\w+\(.* has no return type specified\.$#'
+            identifier: missingType.return
+            path: tests/*

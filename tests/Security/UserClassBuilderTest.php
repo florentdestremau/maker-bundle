@@ -15,13 +15,15 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\MakerBundle\Security\UserClassBuilder;
 use Symfony\Bundle\MakerBundle\Security\UserClassConfiguration;
 use Symfony\Bundle\MakerBundle\Util\ClassSourceManipulator;
+use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Security\Http\Attribute\IsGrantedContext;
 
 class UserClassBuilderTest extends TestCase
 {
     /**
      * @dataProvider getUserInterfaceTests
      */
-    public function testAddUserInterfaceImplementation(UserClassConfiguration $userClassConfig, string $expectedFilename): void
+    public function testAddUserInterfaceImplementation(UserClassConfiguration $userClassConfig, string $expectedFilename)
     {
         $manipulator = $this->getClassSourceManipulator($userClassConfig);
 
@@ -31,10 +33,18 @@ class UserClassBuilderTest extends TestCase
         $expectedPath = $this->getExpectedPath($expectedFilename, null);
         $expectedSource = file_get_contents($expectedPath);
 
+        if (!class_exists(IsGrantedContext::class)) {
+            $expectedSource = preg_replace('/\n\n(.+\n)+.+function __serialize[^}]++}/', '', $expectedSource);
+        }
+
+        if (!method_exists(UserInterface::class, 'eraseCredentials')) {
+            $expectedSource = preg_replace('/\n\n(.+\n)+.+function eraseCredentials[^}]++}/', '', $expectedSource);
+        }
+
         self::assertSame($expectedSource, $manipulator->getSourceCode());
     }
 
-    public function getUserInterfaceTests(): \Generator
+    public static function getUserInterfaceTests(): \Generator
     {
         yield 'entity_with_email_as_identifier' => [
             new UserClassConfiguration(true, 'email', true),

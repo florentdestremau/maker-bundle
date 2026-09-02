@@ -23,10 +23,10 @@ class MakeTestTest extends MakerTestCase
         return MakeTest::class;
     }
 
-    public function getTestDetails(): \Generator
+    public static function getTestDetails(): \Generator
     {
-        yield 'it_makes_TestCase_type' => [$this->createMakerTest()
-            ->run(function (MakerTestRunner $runner) {
+        yield 'it_makes_TestCase_type' => [self::buildMakerTest()
+            ->run(static function (MakerTestRunner $runner) {
                 $runner->runMaker(
                     [
                         // type
@@ -40,8 +40,8 @@ class MakeTestTest extends MakerTestCase
             }),
         ];
 
-        yield 'it_makes_KernelTestCase_type' => [$this->createMakerTest()
-            ->run(function (MakerTestRunner $runner) {
+        yield 'it_makes_KernelTestCase_type' => [self::buildMakerTest()
+            ->run(static function (MakerTestRunner $runner) {
                 $runner->copy(
                     'make-test/basic_setup',
                     ''
@@ -60,8 +60,8 @@ class MakeTestTest extends MakerTestCase
             }),
         ];
 
-        yield 'it_makes_WebTestCase_type' => [$this->createMakerTest()
-            ->run(function (MakerTestRunner $runner) {
+        yield 'it_makes_WebTestCase_type' => [self::buildMakerTest()
+            ->run(static function (MakerTestRunner $runner) {
                 $runner->copy(
                     'make-test/basic_setup',
                     ''
@@ -80,12 +80,21 @@ class MakeTestTest extends MakerTestCase
             }),
         ];
 
-        yield 'it_makes_PantherTestCase_type' => [$this->getPantherTest()
+        yield 'it_makes_PantherTestCase_type' => [self::getPantherTest()
             ->addExtraDependencies('panther')
-            ->run(function (MakerTestRunner $runner) {
+            ->run(static function (MakerTestRunner $runner) {
                 $runner->copy(
                     'make-test/basic_setup',
                     ''
+                );
+
+                // Panther serves the app under PANTHER_APP_ENV, which its recipe sets to "panther",
+                // and the Symfony 8 skeleton refuses any environment its kernel does not list
+                $runner->replaceInFile(
+                    'src/Kernel.php',
+                    "return ['prod', 'dev', 'test'];",
+                    "return ['prod', 'dev', 'test', 'panther'];",
+                    allowNotFound: true
                 );
 
                 $runner->runMaker(
@@ -105,9 +114,9 @@ class MakeTestTest extends MakerTestCase
         ];
     }
 
-    protected function getPantherTest(): MakerTestDetails
+    protected static function getPantherTest(): MakerTestDetails
     {
-        return $this->createMakerTest()
+        return self::buildMakerTest()
             ->skipTest(
                 message: 'Panther test skipped - MAKER_SKIP_PANTHER_TEST set to TRUE.',
                 skipped: getenv('MAKER_SKIP_PANTHER_TEST')

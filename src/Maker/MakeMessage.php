@@ -21,6 +21,7 @@ use Symfony\Bundle\MakerBundle\Util\YamlSourceManipulator;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Messenger\Attribute\AsMessage;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -86,6 +87,8 @@ final class MakeMessage extends AbstractMaker
 
     public function generate(InputInterface $input, ConsoleStyle $io, Generator $generator): void
     {
+        $chosenTransport = $input->getArgument('chosen-transport');
+
         $messageClassNameDetails = $generator->createClassNameDetails(
             $input->getArgument('name'),
             'Message\\'
@@ -97,9 +100,19 @@ final class MakeMessage extends AbstractMaker
             'Handler'
         );
 
+        $useStatements = new UseStatementGenerator([]);
+
+        if ($chosenTransport) {
+            $useStatements->addUseStatement(AsMessage::class);
+        }
+
         $generator->generateClass(
             $messageClassNameDetails->getFullName(),
-            'message/Message.tpl.php'
+            'message/Message.tpl.php',
+            [
+                'use_statements' => $useStatements,
+                'transport' => $chosenTransport,
+            ]
         );
 
         $useStatements = new UseStatementGenerator([
@@ -116,10 +129,6 @@ final class MakeMessage extends AbstractMaker
             ]
         );
 
-        if (null !== $chosenTransport = $input->getArgument('chosen-transport')) {
-            $this->updateMessengerConfig($generator, $chosenTransport, $messageClassNameDetails->getFullName());
-        }
-
         $generator->writeChanges();
 
         $this->writeSuccessMessage($io);
@@ -129,21 +138,6 @@ final class MakeMessage extends AbstractMaker
             '      Then, open the new message handler and do whatever work you want!',
             'Find the documentation at <fg=yellow>https://symfony.com/doc/current/messenger.html</>',
         ]);
-    }
-
-    private function updateMessengerConfig(Generator $generator, string $chosenTransport, string $messageClass): void
-    {
-        $manipulator = new YamlSourceManipulator($this->fileManager->getFileContents($configFilePath = 'config/packages/messenger.yaml'));
-        $messengerData = $manipulator->getData();
-
-        if (!isset($messengerData['framework']['messenger']['routing'])) {
-            $messengerData['framework']['messenger']['routing'] = [];
-        }
-
-        $messengerData['framework']['messenger']['routing'][$messageClass] = $chosenTransport;
-
-        $manipulator->setData($messengerData);
-        $generator->dumpFile($configFilePath, $manipulator->getContents());
     }
 
     public function configureDependencies(DependencyBuilder $dependencies): void

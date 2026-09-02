@@ -5,6 +5,7 @@ namespace <?= $class_data->getNamespace(); ?>;
 <?= $class_data->getUseStatements(); ?>
 
 <?= $class_data->getClassDeclaration() ?>
+
 {
     public const EDIT = 'POST_EDIT';
     public const VIEW = 'POST_VIEW';
@@ -17,11 +18,14 @@ namespace <?= $class_data->getNamespace(); ?>;
             && $subject instanceof \App\Entity\<?= str_replace('Voter', null, $class_data->getClassName()) ?>;
     }
 
-    protected function voteOnAttribute(string $attribute, mixed $subject, TokenInterface $token): bool
+    protected function voteOnAttribute(string $attribute, mixed $subject, TokenInterface $token, ?Vote $vote = null): bool
     {
         $user = $token->getUser();
+
         // if the user is anonymous, do not grant access
         if (!$user instanceof UserInterface) {
+            $vote?->addReason('The user must be logged in to access this resource.');
+
             return false;
         }
 
@@ -31,6 +35,7 @@ namespace <?= $class_data->getNamespace(); ?>;
                 // logic to determine if the user can EDIT
                 // return true or false
                 break;
+
             case self::VIEW:
                 // logic to determine if the user can VIEW
                 // return true or false

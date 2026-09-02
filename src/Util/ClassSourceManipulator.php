@@ -23,12 +23,11 @@ use Doctrine\ORM\Mapping\OneToMany;
 use Doctrine\ORM\Mapping\OneToOne;
 use PhpParser\Builder;
 use PhpParser\BuilderHelpers;
-use PhpParser\Lexer;
 use PhpParser\Node;
 use PhpParser\NodeTraverser;
 use PhpParser\NodeVisitor;
 use PhpParser\Parser;
-use PhpParser\PhpVersion;
+use PhpParser\ParserFactory;
 use Symfony\Bundle\MakerBundle\ConsoleStyle;
 use Symfony\Bundle\MakerBundle\Doctrine\BaseCollectionRelation;
 use Symfony\Bundle\MakerBundle\Doctrine\BaseRelation;
@@ -51,7 +50,6 @@ final class ClassSourceManipulator
     private const DEFAULT_VALUE_NONE = '__default_value_none';
 
     private Parser $parser;
-    private Lexer\Emulative $lexer;
     private PrettyPrinter $printer;
     private ?ConsoleStyle $io = null;
 
@@ -66,22 +64,7 @@ final class ClassSourceManipulator
         private bool $overwrite = false,
         private bool $useAttributesForDoctrineMapping = true,
     ) {
-        /* @legacy Support for nikic/php-parser v4 */
-        if (class_exists(PhpVersion::class)) {
-            $version = PhpVersion::fromString(\PHP_VERSION);
-            $this->lexer = new Lexer\Emulative($version);
-            $this->parser = new Parser\Php8($this->lexer, $version);
-        } else {
-            $this->lexer = new Lexer\Emulative([
-                'usedAttributes' => [
-                    'comments',
-                    'startLine', 'endLine',
-                    'startTokenPos', 'endTokenPos',
-                ],
-            ]);
-            $this->parser = new Parser\Php7($this->lexer);
-        }
-
+        $this->parser = (new ParserFactory())->createForHostVersion();
         $this->printer = new PrettyPrinter();
 
         $this->setSourceCode($sourceCode);
@@ -251,7 +234,7 @@ final class ClassSourceManipulator
         $importedClassName = $this->addUseStatementIfNecessary($trait);
 
         /** @var Node\Stmt\TraitUse[] $traitNodes */
-        $traitNodes = $this->findAllNodes(fn ($node) => $node instanceof Node\Stmt\TraitUse);
+        $traitNodes = $this->findAllNodes(static fn ($node) => $node instanceof Node\Stmt\TraitUse);
 
         foreach ($traitNodes as $node) {
             if ($node->traits[0]->toString() === $importedClassName) {
@@ -444,7 +427,7 @@ final class ClassSourceManipulator
                     break;
                 default:
                     // implement other cases if/when the library needs them
-                    throw new \Exception('Not implemented');
+                    throw new \Exception('Not implemented.');
             }
         }
 
@@ -963,12 +946,7 @@ final class ClassSourceManipulator
         $this->sourceCode = $sourceCode;
         $this->oldStmts = $this->parser->parse($sourceCode);
 
-        /* @legacy Support for nikic/php-parser v4 */
-        if (\is_callable([$this->parser, 'getTokens'])) {
-            $this->oldTokens = $this->parser->getTokens();
-        } elseif (\is_callable($this->lexer->getTokens(...))) {
-            $this->oldTokens = $this->lexer->getTokens();
-        }
+        $this->oldTokens = $this->parser->getTokens();
 
         $traverser = new NodeTraverser();
         $traverser->addVisitor(new NodeVisitor\CloningVisitor());
@@ -980,10 +958,10 @@ final class ClassSourceManipulator
 
     private function getClassNode(): Node\Stmt\Class_
     {
-        $node = $this->findFirstNode(fn ($node) => $node instanceof Node\Stmt\Class_);
+        $node = $this->findFirstNode(static fn ($node) => $node instanceof Node\Stmt\Class_);
 
         if (!$node) {
-            throw new \Exception('Could not find class node');
+            throw new \Exception('Could not find class node.');
         }
 
         return $node;
@@ -991,10 +969,10 @@ final class ClassSourceManipulator
 
     private function getNamespaceNode(): Node\Stmt\Namespace_
     {
-        $node = $this->findFirstNode(fn ($node) => $node instanceof Node\Stmt\Namespace_);
+        $node = $this->findFirstNode(static fn ($node) => $node instanceof Node\Stmt\Namespace_);
 
         if (!$node) {
-            throw new \Exception('Could not find namespace node');
+            throw new \Exception('Could not find namespace node.');
         }
 
         return $node;
@@ -1060,10 +1038,10 @@ final class ClassSourceManipulator
         switch ($context) {
             case self::CONTEXT_OUTSIDE_CLASS:
                 // just not needed yet
-                throw new \Exception('not supported');
+                throw new \Exception('Not supported.');
             case self::CONTEXT_CLASS:
                 // just not needed yet
-                throw new \Exception('not supported');
+                throw new \Exception('Not supported.');
             case self::CONTEXT_CLASS_METHOD:
                 return BuilderHelpers::normalizeStmt(new Node\Expr\Variable(\sprintf('__COMMENT__VAR_%d', \count($this->pendingComments) - 1)));
             default:
@@ -1162,16 +1140,16 @@ final class ClassSourceManipulator
         $classNode = $this->getClassNode();
 
         // try to add after last property
-        $targetNode = $this->findLastNode(fn ($node) => $node instanceof Node\Stmt\Property, [$classNode]);
+        $targetNode = $this->findLastNode(static fn ($node) => $node instanceof Node\Stmt\Property, [$classNode]);
 
         // otherwise, try to add after the last constant
         if (!$targetNode) {
-            $targetNode = $this->findLastNode(fn ($node) => $node instanceof Node\Stmt\ClassConst, [$classNode]);
+            $targetNode = $this->findLastNode(static fn ($node) => $node instanceof Node\Stmt\ClassConst, [$classNode]);
         }
 
         // otherwise, try to add after the last trait
         if (!$targetNode) {
-            $targetNode = $this->findLastNode(fn ($node) => $node instanceof Node\Stmt\TraitUse, [$classNode]);
+            $targetNode = $this->findLastNode(static fn ($node) => $node instanceof Node\Stmt\TraitUse, [$classNode]);
         }
 
         // add the new property after this node

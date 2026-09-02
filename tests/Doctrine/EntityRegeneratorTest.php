@@ -11,8 +11,10 @@
 
 namespace Symfony\Bundle\MakerBundle\Tests\Doctrine;
 
+use Composer\InstalledVersions;
+use Composer\Semver\VersionParser;
 use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
-use Doctrine\Persistence\Reflection\RuntimeReflectionProperty;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
@@ -37,7 +39,8 @@ class EntityRegeneratorTest extends TestCase
     /**
      * @dataProvider getRegenerateEntitiesTests
      */
-    public function testRegenerateEntities(string $expectedDirName, bool $overwrite): void
+    #[DataProvider('getRegenerateEntitiesTests')]
+    public function testRegenerateEntities(string $expectedDirName, bool $overwrite)
     {
         $kernel = new TestEntityRegeneratorKernel('dev', true);
         $this->doTestRegeneration(
@@ -50,7 +53,7 @@ class EntityRegeneratorTest extends TestCase
         );
     }
 
-    public function getRegenerateEntitiesTests(): \Generator
+    public static function getRegenerateEntitiesTests(): \Generator
     {
         yield 'regenerate_no_overwrite' => [
             'expected_no_overwrite',
@@ -61,19 +64,6 @@ class EntityRegeneratorTest extends TestCase
             'expected_overwrite',
             true,
         ];
-    }
-
-    public function testXmlRegeneration(): void
-    {
-        $kernel = new TestXmlEntityRegeneratorKernel('dev', true);
-        $this->doTestRegeneration(
-            __DIR__.'/fixtures/xml_source_project',
-            $kernel,
-            'Symfony\Bundle\MakerBundle\Tests\tmp\current_project_xml\src\Entity',
-            'expected_xml',
-            false,
-            'current_project_xml'
-        );
     }
 
     private function doTestRegeneration(string $sourceDir, Kernel $kernel, string $namespace, string $expectedDirName, bool $overwrite, string $targetDirName): void
@@ -91,7 +81,7 @@ class EntityRegeneratorTest extends TestCase
         $autoloaderUtil = $this->createMock(AutoloaderUtil::class);
         $autoloaderUtil->expects($this->any())
             ->method('getPathForFutureClass')
-            ->willReturnCallback(function ($className) use ($tmpDir, $targetDirName) {
+            ->willReturnCallback(static function ($className) use ($tmpDir, $targetDirName) {
                 $shortClassName = str_replace('Symfony\Bundle\MakerBundle\Tests\tmp\\'.$targetDirName.'\src\\', '', $className);
 
                 // strip the App\, change \ to / and add .php
@@ -188,9 +178,12 @@ class TestEntityRegeneratorKernel extends Kernel
             ],
         ];
 
-        /* @legacy Remove conditional when doctrine/persistence <3.1 are no longer supported. */
-        if (class_exists(RuntimeReflectionProperty::class)) {
+        if (InstalledVersions::satisfies(new VersionParser(), 'doctrine/doctrine-bundle', '^2.8')) {
             $orm['enable_lazy_ghost_objects'] = true;
+        }
+
+        if (\PHP_VERSION_ID >= 80400 && InstalledVersions::satisfies(new VersionParser(), 'doctrine/doctrine-bundle', '^2.15')) {
+            $orm['enable_native_lazy_objects'] = true;
         }
 
         $c->prependExtensionConfig('doctrine', [
@@ -202,74 +195,6 @@ class TestEntityRegeneratorKernel extends Kernel
     public function getProjectDir(): string
     {
         return __DIR__.'/../tmp/current_project';
-    }
-}
-
-class TestXmlEntityRegeneratorKernel extends Kernel
-{
-    use MicroKernelTrait;
-
-    public function registerBundles(): array
-    {
-        return [
-            new FrameworkBundle(),
-            new DoctrineBundle(),
-        ];
-    }
-
-    protected function configureRoutes(RouteCollectionBuilder $routes): void
-    {
-    }
-
-    protected function configureContainer(ContainerBuilder $c, LoaderInterface $loader): void
-    {
-        $c->loadFromExtension('framework', [
-            'secret' => 123,
-            'router' => [
-                'utf8' => true,
-            ],
-            'http_method_override' => false,
-            'handle_all_throwables' => true,
-            'php_errors' => [
-                'log' => true,
-            ],
-        ]);
-
-        $dbal = [
-            'driver' => 'pdo_sqlite',
-            'url' => 'sqlite:///fake',
-        ];
-
-        $orm = [
-            'auto_generate_proxy_classes' => true,
-            'mappings' => [
-                'EntityRegenerator' => [
-                    'is_bundle' => false,
-                    'type' => 'xml',
-                    'dir' => '%kernel.project_dir%/config/doctrine',
-                    'prefix' => 'Symfony\Bundle\MakerBundle\Tests\tmp\current_project_xml\src\Entity',
-                    'alias' => 'EntityRegeneratorApp',
-                ],
-            ],
-            'controller_resolver' => [
-                'auto_mapping' => false,
-            ],
-        ];
-
-        /* @legacy Remove conditional when doctrine/persistence <3.1 are no longer supported. */
-        if (class_exists(RuntimeReflectionProperty::class)) {
-            $orm['enable_lazy_ghost_objects'] = true;
-        }
-
-        $c->prependExtensionConfig('doctrine', [
-            'dbal' => $dbal,
-            'orm' => $orm,
-        ]);
-    }
-
-    public function getProjectDir(): string
-    {
-        return __DIR__.'/../tmp/current_project_xml';
     }
 }
 

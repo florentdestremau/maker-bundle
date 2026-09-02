@@ -23,7 +23,7 @@ use SymfonyDocsBuilder\DocBuilder;
 (new Application('Symfony Docs Builder', '1.0'))
     ->register('build-docs')
     ->addOption('generate-fjson-files', null, InputOption::VALUE_NONE, 'Use this option to generate docs both in HTML and JSON formats')
-    ->setCode(function (InputInterface $input, OutputInterface $output) {
+    ->setCode(static function (InputInterface $input, OutputInterface $output) {
         $io = new SymfonyStyle($input, $output);
         $io->text('Building all Symfony Docs...');
 
@@ -35,7 +35,7 @@ use SymfonyDocsBuilder\DocBuilder;
             ->setImagesDir(__DIR__.'/output/_images')
             ->setImagesPublicPrefix('_images')
             ->setTheme('rtd')
-            ->diableBuildCache()
+            ->disableBuildCache()
         ;
 
         $buildConfig->setExcludedPaths(['.github/', '_build/']);

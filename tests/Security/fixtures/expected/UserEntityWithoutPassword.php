@@ -47,7 +47,6 @@ class User implements UserInterface
 
     /**
      * @see UserInterface
-     * @return list<string>
      */
     public function getRoles(): array
     {
@@ -68,12 +67,9 @@ class User implements UserInterface
         return $this;
     }
 
-    /**
-     * @see UserInterface
-     */
+    #[\Deprecated]
     public function eraseCredentials(): void
     {
-        // If you store any temporary, sensitive data on the user, clear it here
-        // $this->plainPassword = null;
+        // @deprecated, to be removed when upgrading to Symfony 8
     }
 }

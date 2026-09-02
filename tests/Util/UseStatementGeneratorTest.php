@@ -20,7 +20,7 @@ use Symfony\Bundle\MakerBundle\Util\UseStatementGenerator;
  */
 class UseStatementGeneratorTest extends TestCase
 {
-    public function testUseStatements(): void
+    public function testUseStatements()
     {
         $unsorted = new UseStatementGenerator([
             Sorter::class,
@@ -39,7 +39,7 @@ class UseStatementGeneratorTest extends TestCase
         self::assertSame($expected, (string) $unsorted);
     }
 
-    public function testComplexStatements(): void
+    public function testComplexStatements()
     {
         $unsorted = new UseStatementGenerator([
             \Symfony\Bundle\FrameworkBundle\Controller\AbstractController::class,
@@ -74,7 +74,7 @@ class UseStatementGeneratorTest extends TestCase
         self::assertSame($expected, (string) $unsorted);
     }
 
-    public function testUseStatementsWithAliases(): void
+    public function testUseStatementsWithAliases()
     {
         $unsorted = new UseStatementGenerator([
             \Symfony\UX\Turbo\Attribute\Broadcast::class,
@@ -91,7 +91,7 @@ class UseStatementGeneratorTest extends TestCase
         self::assertSame($expected, (string) $unsorted);
     }
 
-    public function testUseStatementsWithDuplicates(): void
+    public function testUseStatementsWithDuplicates()
     {
         $unsorted = new UseStatementGenerator([
             \Symfony\UX\Turbo\Attribute\Broadcast::class,
@@ -105,5 +105,33 @@ class UseStatementGeneratorTest extends TestCase
 
             EOT;
         self::assertSame($expected, (string) $unsorted);
+    }
+
+    public function testUseStatementShortName()
+    {
+        $statement = new UseStatementGenerator([
+            \Symfony\UX\Turbo\Attribute\Broadcast::class,
+            \ApiPlatform\Core\Annotation\ApiResource::class,
+            [\Doctrine\ORM\Mapping::class => 'ORM'],
+        ]);
+
+        self::assertSame('Broadcast', $statement->getShortName(\Symfony\UX\Turbo\Attribute\Broadcast::class));
+        self::assertSame('ApiResource', $statement->getShortName(\ApiPlatform\Core\Annotation\ApiResource::class));
+        self::assertSame('ORM', $statement->getShortName(\Doctrine\ORM\Mapping::class));
+        self::assertSame('ORM\\Entity', $statement->getShortName(\Doctrine\ORM\Mapping\Entity::class));
+    }
+
+    public function testHasUseStatement()
+    {
+        $statement = new UseStatementGenerator([
+            \Symfony\UX\Turbo\Attribute\Broadcast::class,
+            \ApiPlatform\Core\Annotation\ApiResource::class,
+            [\Doctrine\ORM\Mapping::class => 'ORM'],
+        ]);
+
+        self::assertTrue($statement->hasUseStatement(\ApiPlatform\Core\Annotation\ApiResource::class));
+        self::assertTrue($statement->hasUseStatement(\Symfony\UX\Turbo\Attribute\Broadcast::class));
+        self::assertTrue($statement->hasUseStatement(\Doctrine\ORM\Mapping::class));
+        self::assertFalse($statement->hasUseStatement(\Doctrine\ORM\Cache::class));
     }
 }

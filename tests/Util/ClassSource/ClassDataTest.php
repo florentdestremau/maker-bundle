@@ -11,14 +11,17 @@
 
 namespace Symfony\Bundle\MakerBundle\Tests\Util\ClassSource;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Symfony\Bundle\MakerBundle\InputAwareMakerInterface;
 use Symfony\Bundle\MakerBundle\MakerBundle;
+use Symfony\Bundle\MakerBundle\MakerInterface;
 use Symfony\Bundle\MakerBundle\Test\MakerTestKernel;
 use Symfony\Bundle\MakerBundle\Util\ClassSource\Model\ClassData;
 
 class ClassDataTest extends TestCase
 {
-    public function testStaticConstructor(): void
+    public function testStaticConstructor()
     {
         $meta = ClassData::create(MakerBundle::class);
 
@@ -30,14 +33,14 @@ class ClassDataTest extends TestCase
         self::assertSame('App\Symfony\Bundle\MakerBundle\MakerBundle', $meta->getFullClassName());
     }
 
-    public function testGetClassDeclaration(): void
+    public function testGetClassDeclaration()
     {
         $meta = ClassData::create(MakerBundle::class);
 
         self::assertSame('final class MakerBundle', $meta->getClassDeclaration());
     }
 
-    public function testIsFinal(): void
+    public function testIsFinal()
     {
         $meta = ClassData::create(MakerBundle::class);
 
@@ -49,7 +52,7 @@ class ClassDataTest extends TestCase
         self::assertSame('class MakerBundle', $meta->getClassDeclaration());
     }
 
-    public function testGetClassDeclarationWithExtends(): void
+    public function testGetClassDeclarationWithExtends()
     {
         $meta = ClassData::create(class: MakerBundle::class, extendsClass: MakerTestKernel::class);
 
@@ -57,14 +60,15 @@ class ClassDataTest extends TestCase
     }
 
     /** @dataProvider suffixDataProvider */
-    public function testSuffix(?string $suffix, string $expectedResult): void
+    #[DataProvider('suffixDataProvider')]
+    public function testSuffix(?string $suffix, string $expectedResult)
     {
         $data = ClassData::create(class: MakerBundle::class, suffix: $suffix);
 
         self::assertSame($expectedResult, $data->getClassName());
     }
 
-    public function suffixDataProvider(): \Generator
+    public static function suffixDataProvider(): \Generator
     {
         yield [null, 'MakerBundle'];
         yield ['Testing', 'MakerBundleTesting'];
@@ -72,7 +76,8 @@ class ClassDataTest extends TestCase
     }
 
     /** @dataProvider namespaceDataProvider */
-    public function testNamespace(string $class, ?string $rootNamespace, string $expectedNamespace, string $expectedFullClassName): void
+    #[DataProvider('namespaceDataProvider')]
+    public function testNamespace(string $class, ?string $rootNamespace, string $expectedNamespace, string $expectedFullClassName)
     {
         $class = ClassData::create($class);
 
@@ -84,7 +89,7 @@ class ClassDataTest extends TestCase
         self::assertSame($expectedFullClassName, $class->getFullClassName());
     }
 
-    public function namespaceDataProvider(): \Generator
+    public static function namespaceDataProvider(): \Generator
     {
         yield ['MyController', null, 'App', 'App\MyController'];
         yield ['Controller\MyController', null, 'App\Controller', 'App\Controller\MyController'];
@@ -92,7 +97,7 @@ class ClassDataTest extends TestCase
         yield ['Controller\MyController', 'Maker', 'Maker\Controller', 'Maker\Controller\MyController'];
     }
 
-    public function testGetClassName(): void
+    public function testGetClassName()
     {
         $class = ClassData::create(class: 'Controller\\Foo', suffix: 'Controller');
         self::assertSame('FooController', $class->getClassName());
@@ -102,7 +107,7 @@ class ClassDataTest extends TestCase
         self::assertSame('App\Controller\FooController', $class->getFullClassName());
     }
 
-    public function testGetClassNameRelativeNamespace(): void
+    public function testGetClassNameRelativeNamespace()
     {
         $class = ClassData::create(class: 'Controller\\Admin\\Foo', suffix: 'Controller');
         self::assertSame('FooController', $class->getClassName());
@@ -112,7 +117,7 @@ class ClassDataTest extends TestCase
         self::assertSame('App\Controller\Admin\FooController', $class->getFullClassName());
     }
 
-    public function testGetClassNameWithAbsoluteNamespace(): void
+    public function testGetClassNameWithAbsoluteNamespace()
     {
         $class = ClassData::create(class: '\\Foo\\Bar\\Admin\\Baz', suffix: 'Controller');
         self::assertSame('BazController', $class->getClassName());
@@ -121,7 +126,8 @@ class ClassDataTest extends TestCase
     }
 
     /** @dataProvider fullClassNameProvider */
-    public function testGetFullClassName(string $class, ?string $rootNamespace, bool $withoutRootNamespace, bool $withoutSuffix, string $expectedFullClassName): void
+    #[DataProvider('fullClassNameProvider')]
+    public function testGetFullClassName(string $class, ?string $rootNamespace, bool $withoutRootNamespace, bool $withoutSuffix, string $expectedFullClassName)
     {
         $class = ClassData::create($class, suffix: 'Controller');
 
@@ -132,7 +138,7 @@ class ClassDataTest extends TestCase
         self::assertSame($expectedFullClassName, $class->getFullClassName(withoutRootNamespace: $withoutRootNamespace, withoutSuffix: $withoutSuffix));
     }
 
-    public function fullClassNameProvider(): \Generator
+    public static function fullClassNameProvider(): \Generator
     {
         yield ['Controller\MyController', null, false, false, 'App\Controller\MyController'];
         yield ['Controller\MyController', null, true, false, 'Controller\MyController'];
@@ -142,5 +148,25 @@ class ClassDataTest extends TestCase
         yield ['Controller\MyController', 'Custom', true, false, 'Controller\MyController'];
         yield ['Controller\MyController', 'Custom', false, true, 'Custom\Controller\My'];
         yield ['Controller\MyController', 'Custom', true, true, 'Controller\My'];
+    }
+
+    /** @dataProvider withImplementsProvider */
+    public function testWithImplements(string $class, array $implements, string $expectedClassDeclaration, string $expectedUseStatements)
+    {
+        $meta = ClassData::create(class: $class, implements: $implements);
+        self::assertSame($expectedClassDeclaration, $meta->getClassDeclaration());
+        self::assertSame($expectedUseStatements, $meta->getUseStatements());
+    }
+
+    public function withImplementsProvider(): \Generator
+    {
+        yield [MakerBundle::class, [MakerInterface::class], 'final class MakerBundle implements MakerInterface', "use Symfony\Bundle\MakerBundle\MakerInterface;\n"];
+        yield [MakerBundle::class, [MakerInterface::class, InputAwareMakerInterface::class], 'final class MakerBundle implements MakerInterface, InputAwareMakerInterface', "use Symfony\Bundle\MakerBundle\InputAwareMakerInterface;\nuse Symfony\Bundle\MakerBundle\MakerInterface;\n"];
+    }
+
+    public function testWithExtendsAndImplements()
+    {
+        $meta = ClassData::create(class: MakerBundle::class, extendsClass: MakerTestKernel::class, implements: [MakerInterface::class]);
+        self::assertSame('final class MakerBundle extends MakerTestKernel implements MakerInterface', $meta->getClassDeclaration());
     }
 }

@@ -12,6 +12,7 @@
 namespace Symfony\Bundle\MakerBundle;
 
 use Symfony\Bundle\MakerBundle\DependencyInjection\CompilerPass\MakeCommandRegistrationPass;
+use Symfony\Bundle\MakerBundle\DependencyInjection\CompilerPass\MakeDecoratorPass;
 use Symfony\Bundle\MakerBundle\DependencyInjection\CompilerPass\RemoveMissingParametersPass;
 use Symfony\Bundle\MakerBundle\DependencyInjection\CompilerPass\SetDoctrineAnnotatedPrefixesPass;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
@@ -32,7 +33,13 @@ class MakerBundle extends AbstractBundle
     {
         $definition->rootNode()
             ->children()
-                ->scalarNode('root_namespace')->defaultValue('App')->end()
+                ->scalarNode('root_namespace')
+                    ->defaultValue('App')
+                    ->validate()
+                        ->ifString()
+                        ->then(Validator::validateClassName(...))
+                    ->end()
+                ->end()
                 ->booleanNode('generate_final_classes')->defaultTrue()->end()
                 ->booleanNode('generate_final_entities')->defaultFalse()->end()
             ->end()
@@ -41,8 +48,8 @@ class MakerBundle extends AbstractBundle
 
     public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
     {
-        $container->import('../config/services.xml');
-        $container->import('../config/makers.xml');
+        $container->import('../config/services.php');
+        $container->import('../config/makers.php');
 
         $rootNamespace = trim($config['root_namespace'], '\\');
 
@@ -57,6 +64,8 @@ class MakerBundle extends AbstractBundle
                 ->arg(0, $config['generate_final_classes'])
                 ->arg(1, $config['generate_final_entities'])
                 ->arg(2, $rootNamespace)
+            ->get('maker.entity_class_generator')
+                ->arg(2, $config['generate_final_entities'])
         ;
 
         $builder
@@ -69,6 +78,7 @@ class MakerBundle extends AbstractBundle
     {
         // add a priority so we run before the core command pass
         $container->addCompilerPass(new MakeCommandRegistrationPass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 10);
+        $container->addCompilerPass(new MakeDecoratorPass());
         $container->addCompilerPass(new RemoveMissingParametersPass());
         $container->addCompilerPass(new SetDoctrineAnnotatedPrefixesPass());
     }
